@@ -7,21 +7,50 @@ import com.app.qlvetau.model.entity.NguoiMua;
 import com.app.qlvetau.model.entity.Ve;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
+/**
+ * MainFrame with tabs:
+ * - "Người mua" tab: hiển thị bảng người mua
+ * - "Vé" tab: hiển thị bảng vé
+ * Buttons trên toolbar vẫn mở form thêm / các chức năng khác.
+ */
 public class MainFrame extends JFrame {
     private final NguoiMuaController nmCtrl;
     private final VeController vCtrl;
     private final HoaDonController hdCtrl;
 
-    private final DefaultListModel<NguoiMua> modelNguoi = new DefaultListModel<>();
-    private final DefaultListModel<Ve> modelVe = new DefaultListModel<>();
+    private final DefaultTableModel modelNguoi;
+    private final DefaultTableModel modelVe;
+
+    private final JTable tableNguoi;
+    private final JTable tableVe;
 
     public MainFrame() {
         super("Quản lý bán vé tàu");
         nmCtrl = new NguoiMuaController();
         vCtrl = new VeController();
         hdCtrl = new HoaDonController(vCtrl.getDao());
+
+        modelNguoi = new DefaultTableModel(new Object[]{"Mã", "Họ tên", "Địa chỉ", "Loại"}, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tableNguoi = new JTable(modelNguoi);
+        tableNguoi.setFillsViewportHeight(true);
+        tableNguoi.setShowGrid(true);
+        tableNguoi.setGridColor(Color.LIGHT_GRAY);
+        tableNguoi.getTableHeader().setReorderingAllowed(false);
+
+        modelVe = new DefaultTableModel(new Object[]{"Mã", "Loại ghế", "Đơn giá"}, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tableVe = new JTable(modelVe);
+        tableVe.setFillsViewportHeight(true);
+        tableVe.setShowGrid(true);
+        tableVe.setGridColor(Color.LIGHT_GRAY);
+        tableVe.getTableHeader().setReorderingAllowed(false);
+
         initUI();
     }
 
@@ -46,48 +75,54 @@ public class MainFrame extends JFrame {
         top.add(btnNguoi); top.add(btnVe); top.add(btnHD); top.add(btnSapXep); top.add(btnBaoCao);
         add(top, BorderLayout.NORTH);
 
-        // Center: two lists side by side (NguoiMua | Ve)
-        JPanel center = new JPanel(new GridLayout(1, 2, 8, 8));
+        // Tabbed pane with two tabs
+        JTabbedPane tabs = new JTabbedPane();
 
-        // Người mua panel
-        JPanel pNguoi = new JPanel(new BorderLayout(4,4));
-        pNguoi.setBorder(BorderFactory.createTitledBorder("Danh sách Người mua"));
-        JList<NguoiMua> listNguoi = new JList<>(modelNguoi);
-        pNguoi.add(new JScrollPane(listNguoi), BorderLayout.CENTER);
-        center.add(pNguoi);
+        JScrollPane spNguoi = new JScrollPane(tableNguoi);
+        spNguoi.setBorder(BorderFactory.createEmptyBorder(6,6,6,6));
+        tabs.addTab("Người mua", spNguoi);
 
-        // Vé panel
-        JPanel pVe = new JPanel(new BorderLayout(4,4));
-        pVe.setBorder(BorderFactory.createTitledBorder("Danh sách Vé"));
-        JList<Ve> listVe = new JList<>(modelVe);
-        pVe.add(new JScrollPane(listVe), BorderLayout.CENTER);
-        center.add(pVe);
+        JScrollPane spVe = new JScrollPane(tableVe);
+        spVe.setBorder(BorderFactory.createEmptyBorder(6,6,6,6));
+        tabs.addTab("Vé", spVe);
 
-        add(center, BorderLayout.CENTER);
+        add(tabs, BorderLayout.CENTER);
 
         // load initial data
-        refreshNguoiList();
-        refreshVeList();
+        refreshNguoiTable();
+        refreshVeTable();
     }
 
     // Public methods so forms can request refresh after data changes
-    public void refreshNguoiList() {
+    public void refreshNguoiTable() {
         SwingUtilities.invokeLater(() -> {
-            modelNguoi.clear();
-            nmCtrl.listAll().forEach(modelNguoi::addElement);
+            modelNguoi.setRowCount(0);
+            for (NguoiMua n : nmCtrl.listAll()) {
+                modelNguoi.addRow(new Object[]{
+                        String.format("%05d", n.getId()),
+                        n.getHoTen(),
+                        n.getDiaChi(),
+                        n.getLoai()
+                });
+            }
         });
     }
 
-    public void refreshVeList() {
+    public void refreshVeTable() {
         SwingUtilities.invokeLater(() -> {
-            modelVe.clear();
-            vCtrl.listAll().forEach(modelVe::addElement);
+            modelVe.setRowCount(0);
+            for (Ve v : vCtrl.listAll()) {
+                modelVe.addRow(new Object[]{
+                        String.format("%05d", v.getId()),
+                        v.getLoaiGhe(),
+                        String.format("%.2f", v.getDonGia())
+                });
+            }
         });
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            // optional LAF
             try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
             MainFrame mf = new MainFrame();
             mf.setVisible(true);
